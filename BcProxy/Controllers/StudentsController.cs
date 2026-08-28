@@ -8,125 +8,151 @@ namespace BcProxy.Controllers;
 [Route("[controller]")]
 public class StudentsController : ControllerBase
 {
-    private readonly StudentFinancialsService _financialsService;
+    private readonly StudentProfileService _profileService;
     private readonly ILogger<StudentsController> _logger;
 
-    public StudentsController(StudentFinancialsService financialsService, ILogger<StudentsController> logger)
+    public StudentsController(StudentProfileService profileService, ILogger<StudentsController> logger)
     {
-        _financialsService = financialsService;
+        _profileService = profileService;
         _logger = logger;
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // LIST endpoint — bio-data only (CRM student list page)
+    // ──────────────────────────────────────────────────────────────────────────
+
     /// <summary>
-    /// Get financial data for ALL Grade 10 students for a given term.
+    /// Returns all students with bio-data only (no exam accounts or ledger entries).
+    /// Designed for populating CRM list/table views.
+    /// Optionally filter by name (contains) or ID number (exact match).
+    /// Full dataset is always returned — pagination is handled server-side via OData continuation.
     /// </summary>
-    /// <param name="term">Term name e.g. "TERM 1", "TERM 2", "TERM 3"</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of Grade 10 students with fee breakdown and balance</returns>
-    [HttpGet("grade10")]
-    public async Task<ActionResult<List<Grade10StudentFinancials>>> GetGrade10Financials(
-        [FromQuery] string term,
-        [FromQuery] string? startDate,
-        [FromQuery] string? endDate,
+    /// <param name="name">Optional partial name filter (case-insensitive contains)</param>
+    /// <param name="idNo">Optional exact National ID number filter</param>
+    [HttpGet]
+    public async Task<ActionResult<List<StudentSummary>>> GetAllStudents(
+        [FromQuery] string? name,
+        [FromQuery] string? idNo,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(term))
-        {
-            return BadRequest(new { error = "Bad Request", message = "Query parameter 'term' is required. E.g. ?term=TERM 1" });
-        }
-
         try
         {
-            _logger.LogInformation("GET /students/grade10?term={Term}&startDate={Start}&endDate={End}", term, startDate, endDate);
+            _logger.LogInformation("GET /students?name={Name}&idNo={IdNo}", name, idNo);
 
-            var result = await _financialsService.GetGrade10FinancialsAsync(term.Trim().ToUpper(), startDate, endDate, cancellationToken);
-
-            if (result.Count == 0)
-            {
-                return NotFound(new { error = "Not Found", message = $"No Grade 10 students found for term '{term}'" });
-            }
-
+            var result = await _profileService.GetAllStudentsAsync(name, idNo, cancellationToken);
             return Ok(result);
-        }
-        catch (BusinessCentralException ex)
-        {
-            _logger.LogError(ex, "BC error fetching Grade 10 financials for term {Term}", term);
-            return ex.StatusCode.HasValue
-                ? StatusCode((int)ex.StatusCode.Value, new { error = "Business Central Error", message = ex.Message })
-                : StatusCode(502, new { error = "Bad Gateway", message = "Failed to reach Business Central" });
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "HTTP error fetching Grade 10 financials for term {Term}", term);
-            return StatusCode(502, new { error = "Bad Gateway", message = "Failed to reach Business Central" });
-        }
-        catch (TaskCanceledException)
-        {
-            _logger.LogError("Timeout fetching Grade 10 financials for term {Term}", term);
-            return StatusCode(504, new { error = "Gateway Timeout", message = "Request to Business Central timed out" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error fetching Grade 10 financials for term {Term}", term);
-            return StatusCode(500, new { error = "Internal Server Error", message = "An unexpected error occurred" });
+            return HandleException(ex, "fetching student list");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // DETAIL endpoints — full profile (bio + exam accounts + ledger)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the full profile for a student by their BC Customer No (e.g. ST00145181).
+    /// Includes bio-data, all KASNEB exam accounts, and all ledger entries.
+    /// </summary>
+    /// <param name="customerNo">BC Customer No (e.g. "ST00145181")</param>
+    [HttpGet("{customerNo}")]
+    public async Task<ActionResult<StudentProfile>> GetByCustomerNo(
+        string customerNo,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("GET /students/{CustomerNo}", customerNo);
+
+            var result = await _profileService.GetStudentByCustomerNoAsync(customerNo, cancellationToken);
+
+            return result is null
+                ? NotFound(new { error = "Not Found", message = $"No student found with Customer No '{customerNo}'" })
+                : Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return HandleException(ex, $"fetching student {customerNo}");
         }
     }
 
     /// <summary>
-    /// Get financial data for a single student by student number.
+    /// Returns the full profile for a student identified by their National ID number.
     /// </summary>
-    /// <param name="studentNo">Student number e.g. "3287"</param>
-    /// <param name="term">Term name e.g. "TERM 1"</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Student financials with fee breakdown and balance</returns>
-    [HttpGet("{studentNo}/financials")]
-    public async Task<ActionResult<Grade10StudentFinancials>> GetStudentFinancials(
-        string studentNo,
-        [FromQuery] string term,
-        [FromQuery] string? startDate,
-        [FromQuery] string? endDate,
+    /// <param name="idNo">National ID number (e.g. "36478037")</param>
+    [HttpGet("by-id/{idNo}")]
+    public async Task<ActionResult<StudentProfile>> GetByIdNo(
+        string idNo,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(term))
-        {
-            return BadRequest(new { error = "Bad Request", message = "Query parameter 'term' is required. E.g. ?term=TERM 1" });
-        }
-
         try
         {
-            _logger.LogInformation("GET /students/{StudentNo}/financials?term={Term}&startDate={Start}&endDate={End}", studentNo, term, startDate, endDate);
+            _logger.LogInformation("GET /students/by-id/{IdNo}", idNo);
 
-            var result = await _financialsService.GetStudentFinancialsAsync(
-                studentNo, term.Trim().ToUpper(), startDate, endDate, cancellationToken);
+            var result = await _profileService.GetStudentByIdNoAsync(idNo, cancellationToken);
 
-            if (result == null)
-            {
-                return NotFound(new { error = "Not Found", message = $"No records found for student '{studentNo}' in term '{term}'" });
-            }
-
-            return Ok(result);
-        }
-        catch (BusinessCentralException ex)
-        {
-            _logger.LogError(ex, "BC error fetching financials for student {StudentNo}", studentNo);
-            return ex.StatusCode.HasValue
-                ? StatusCode((int)ex.StatusCode.Value, new { error = "Business Central Error", message = ex.Message })
-                : StatusCode(502, new { error = "Bad Gateway", message = "Failed to reach Business Central" });
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "HTTP error fetching financials for student {StudentNo}", studentNo);
-            return StatusCode(502, new { error = "Bad Gateway", message = "Failed to reach Business Central" });
-        }
-        catch (TaskCanceledException)
-        {
-            _logger.LogError("Timeout fetching financials for student {StudentNo}", studentNo);
-            return StatusCode(504, new { error = "Gateway Timeout", message = "Request to Business Central timed out" });
+            return result is null
+                ? NotFound(new { error = "Not Found", message = $"No student found with ID No '{idNo}'" })
+                : Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error fetching financials for student {StudentNo}", studentNo);
-            return StatusCode(500, new { error = "Internal Server Error", message = "An unexpected error occurred" });
+            return HandleException(ex, $"fetching student by ID {idNo}");
+        }
+    }
+
+    /// <summary>
+    /// Returns the full profile for a student identified by their KASNEB Registration No.
+    /// </summary>
+    /// <param name="registrationNo">KASNEB Registration No (e.g. "2021/CPA/03987" or "NAC/181912")</param>
+    [HttpGet("by-registration/{registrationNo}")]
+    public async Task<ActionResult<StudentProfile>> GetByRegistrationNo(
+        string registrationNo,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("GET /students/by-registration/{RegistrationNo}", registrationNo);
+
+            var result = await _profileService.GetStudentByRegistrationNoAsync(registrationNo, cancellationToken);
+
+            return result is null
+                ? NotFound(new { error = "Not Found", message = $"No student found with Registration No '{registrationNo}'" })
+                : Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return HandleException(ex, $"fetching student by registration {registrationNo}");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Shared error handler
+    // ──────────────────────────────────────────────────────────────────────────
+
+    private ObjectResult HandleException(Exception ex, string context)
+    {
+        switch (ex)
+        {
+            case TaskCanceledException:
+                _logger.LogError("Timeout {Context}", context);
+                return StatusCode(504, new { error = "Gateway Timeout", message = "Request to Business Central timed out" });
+
+            case BusinessCentralException bcEx:
+                _logger.LogError(bcEx, "BC error {Context}", context);
+                return bcEx.StatusCode.HasValue
+                    ? StatusCode((int)bcEx.StatusCode.Value, new { error = "Business Central Error", message = bcEx.Message })
+                    : StatusCode(502, new { error = "Bad Gateway", message = "Failed to reach Business Central" });
+
+            case HttpRequestException httpEx:
+                _logger.LogError(httpEx, "HTTP error {Context}", context);
+                return StatusCode(502, new { error = "Bad Gateway", message = "Failed to reach Business Central" });
+
+            default:
+                _logger.LogError(ex, "Unexpected error {Context}", context);
+                return StatusCode(500, new { error = "Internal Server Error", message = "An unexpected error occurred" });
         }
     }
 }

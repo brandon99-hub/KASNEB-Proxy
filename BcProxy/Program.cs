@@ -7,6 +7,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "KASNEB BC Proxy API",
+        Version = "v1",
+        Description = "Proxy layer between Business Central and the KASNEB CRM — exposes student bio-data, exam accounts, and ledger entries."
+    });
     c.AddSecurityDefinition("ApiKey", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Description = "API Key authentication using X-API-Key header",
@@ -30,50 +36,45 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// StudentFinancialsService — queries Studentfees + customerbalance for Grade 10 financial data
-builder.Services.AddHttpClient<StudentFinancialsService>(client =>
+// ─── HttpClient for ODataFetcher ─────────────────────────────────────────────
+// Uses Windows Authentication (NTLM/Negotiate) via UseDefaultCredentials — the
+// proxy runs on the same domain as the BC server so the machine account is used.
+builder.Services.AddHttpClient<ODataFetcher>(client =>
 {
     var baseUrl = builder.Configuration["BusinessCentral:BaseUrl"]
         ?? throw new InvalidOperationException("BusinessCentral:BaseUrl is not configured in appsettings.json");
 
     if (!baseUrl.EndsWith("/")) baseUrl += "/";
     client.BaseAddress = new Uri(baseUrl);
-    client.Timeout = TimeSpan.FromSeconds(60);
+
+    // 90-second timeout to accommodate large paginated pulls from BC
+    client.Timeout = TimeSpan.FromSeconds(90);
 })
 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
 {
-    UseDefaultCredentials = true
+    UseDefaultCredentials = true   // Windows Auth — NTLM/Negotiate
 });
 
-builder.Services.AddHttpClient<StandardFeesService>(client =>
-{
-    var baseUrl = builder.Configuration["BusinessCentral:BaseUrl"]
-        ?? throw new InvalidOperationException("BusinessCentral:BaseUrl is not configured in appsettings.json");
+// ─── Application services ─────────────────────────────────────────────────────
+builder.Services.AddScoped<StudentProfileService>();
 
-    if (!baseUrl.EndsWith("/")) baseUrl += "/";
-    client.BaseAddress = new Uri(baseUrl);
-    client.Timeout = TimeSpan.FromSeconds(60);
-})
-.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-{
-    UseDefaultCredentials = true
-});
-
+// ─── Logging ─────────────────────────────────────────────────────────────────
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "KASNEB BC Proxy v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseMiddleware<ApiKeyMiddleware>();
 
-// app.UseHttpsRedirection(); // Commented out to allow plain HTTP access on port 5000
+// app.UseHttpsRedirection(); // Disabled — plain HTTP on internal network
 app.UseAuthorization();
 app.MapControllers();
 
