@@ -1,6 +1,17 @@
 namespace BcProxy.Models;
 
 /// <summary>
+/// Generic paginated envelope for list endpoints.
+/// </summary>
+public class PagedResponse<T>
+{
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int Count { get; set; }
+    public List<T> Data { get; set; } = new();
+}
+
+/// <summary>
 /// Lightweight student summary returned by GET /students (list view).
 /// Contains bio-data from Studentlist only — no exam accounts or ledger entries.
 /// Designed for CRM list pages where the full profile is not yet needed.

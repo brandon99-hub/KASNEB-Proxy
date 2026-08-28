@@ -36,6 +36,25 @@ public class ODataFetcher
     }
 
     /// <summary>
+    /// Fetches a single page from an OData endpoint (used for paginated queries with $top / $skip).
+    /// Does not follow @odata.nextLink — returns immediately with the current page records.
+    /// </summary>
+    public async Task<List<T>> FetchSinglePageAsync<T>(
+        string url,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("ODataFetcher: fetching single page from {Url}", url);
+
+        var response = await _httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response);
+
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var odataResult = JsonSerializer.Deserialize<ODataPageResponse<T>>(content, _jsonOptions);
+
+        return odataResult?.Value ?? new List<T>();
+    }
+
+    /// <summary>
     /// Fetches ALL records from an OData endpoint by following @odata.nextLink
     /// continuation tokens until exhausted.
     /// </summary>

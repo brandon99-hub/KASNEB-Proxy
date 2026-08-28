@@ -38,21 +38,29 @@ public class StudentProfileService
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // LIST — bio-data only (for CRM student list page)
+    // LIST — bio-data only (for CRM student list page with pagination)
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Returns all students from Studentlist as lightweight summaries (bio-data only).
-    /// Uses full pagination to guarantee no students are missed.
+    /// Returns a paginated list of students from Studentlist (bio-data only).
+    /// Uses $top and $skip for instant sub-second response on CRM table pages.
     /// Optionally filters server-side by name or ID number.
     /// </summary>
-    public async Task<List<StudentSummary>> GetAllStudentsAsync(
+    public async Task<PagedResponse<StudentSummary>> GetStudentsPagedAsync(
+        int page = 1,
+        int pageSize = 100,
         string? nameFilter = null,
         string? idNoFilter = null,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Fetching student list — name filter: '{Name}', idNo filter: '{IdNo}'",
-            nameFilter, idNoFilter);
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 50;
+        if (pageSize > 1000) pageSize = 1000;
+
+        int skip = (page - 1) * pageSize;
+
+        _logger.LogInformation("Fetching students page {Page} (pageSize: {PageSize}, skip: {Skip}) — name: '{Name}', idNo: '{IdNo}'",
+            page, pageSize, skip, nameFilter, idNoFilter);
 
         var filterConditions = new List<string>();
 
@@ -62,12 +70,23 @@ public class StudentProfileService
         if (!string.IsNullOrWhiteSpace(idNoFilter))
             filterConditions.Add($"ID_No eq '{ODataEscape(idNoFilter)}'");
 
-        var url = BuildUrl(_studentListEntity, filterConditions);
-        var records = await _fetcher.FetchAllAsync<StudentListRecord>(url, cancellationToken);
+        var queryParams = new List<string>
+        {
+            $"$top={pageSize}",
+            $"$skip={skip}"
+        };
 
-        _logger.LogInformation("StudentList: {Count} records returned", records.Count);
+        if (filterConditions.Count > 0)
+        {
+            queryParams.Add($"$filter={string.Join(" and ", filterConditions)}");
+        }
 
-        return records.Select(r => new StudentSummary
+        var url = $"{_studentListEntity}?{string.Join("&", queryParams)}";
+        var records = await _fetcher.FetchSinglePageAsync<StudentListRecord>(url, cancellationToken);
+
+        _logger.LogInformation("StudentList: {Count} records returned for page {Page}", records.Count, page);
+
+        var items = records.Select(r => new StudentSummary
         {
             CustomerNo  = r.No      ?? string.Empty,
             Name        = r.Name    ?? string.Empty,
@@ -82,8 +101,15 @@ public class StudentProfileService
             BalanceLcy  = r.BalanceLcy,
             SalesLcy    = r.SalesLcy
         })
-        .OrderBy(s => s.Name)
         .ToList();
+
+        return new PagedResponse<StudentSummary>
+        {
+            Page = page,
+            PageSize = pageSize,
+            Count = items.Count,
+            Data = items
+        };
     }
 
     // ──────────────────────────────────────────────────────────────────────────

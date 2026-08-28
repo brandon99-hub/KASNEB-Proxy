@@ -22,24 +22,28 @@ public class StudentsController : ControllerBase
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Returns all students with bio-data only (no exam accounts or ledger entries).
-    /// Designed for populating CRM list/table views.
+    /// Returns a paginated page of students with bio-data only (no exam accounts or ledger entries).
+    /// Designed for fast, sub-second populating of CRM list/table views.
     /// Optionally filter by name (contains) or ID number (exact match).
-    /// Full dataset is always returned — pagination is handled server-side via OData continuation.
     /// </summary>
+    /// <param name="page">1-based page number (default 1)</param>
+    /// <param name="pageSize">Number of records per page (default 100, max 1000)</param>
     /// <param name="name">Optional partial name filter (case-insensitive contains)</param>
     /// <param name="idNo">Optional exact National ID number filter</param>
     [HttpGet]
-    public async Task<ActionResult<List<StudentSummary>>> GetAllStudents(
-        [FromQuery] string? name,
-        [FromQuery] string? idNo,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<PagedResponse<StudentSummary>>> GetAllStudents(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100,
+        [FromQuery] string? name = null,
+        [FromQuery] string? idNo = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("GET /students?name={Name}&idNo={IdNo}", name, idNo);
+            _logger.LogInformation("GET /students?page={Page}&pageSize={PageSize}&name={Name}&idNo={IdNo}",
+                page, pageSize, name, idNo);
 
-            var result = await _profileService.GetAllStudentsAsync(name, idNo, cancellationToken);
+            var result = await _profileService.GetStudentsPagedAsync(page, pageSize, name, idNo, cancellationToken);
             return Ok(result);
         }
         catch (Exception ex)
