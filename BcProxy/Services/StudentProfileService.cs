@@ -263,10 +263,19 @@ public class StudentProfileService
         List<ExamAccount> examAccounts,
         List<LedgerEntry> ledgerEntries)
     {
+        var primaryExam = examAccounts.FirstOrDefault(e => string.Equals(e.Status, "Active", StringComparison.OrdinalIgnoreCase))
+                       ?? examAccounts.FirstOrDefault();
+
+        var courseTitle = !string.IsNullOrWhiteSpace(primaryExam?.CourseDescription)
+            ? primaryExam.CourseDescription
+            : (primaryExam?.CourseId ?? string.Empty);
+
         return new StudentProfile
         {
-            CustomerNo  = student.No      ?? string.Empty,
-            Name        = student.Name    ?? string.Empty,
+            CustomerNo            = student.No ?? string.Empty,
+            PrimaryRegistrationNo = primaryExam?.RegistrationNo ?? string.Empty,
+            QualificationPathway  = courseTitle,
+            Name                  = student.Name    ?? string.Empty,
             IdNo        = student.IdNo    ?? string.Empty,
             PhoneNo     = student.PhoneNo ?? string.Empty,
             Email       = student.Email   ?? string.Empty,

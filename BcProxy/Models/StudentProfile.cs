@@ -51,8 +51,14 @@ public class StudentSummary
 /// </summary>
 public class StudentProfile
 {
-    /// <summary>BC Customer No — primary identifier</summary>
+    /// <summary>BC Customer No — primary internal ERP identifier (e.g. "ST00000453")</summary>
     public string CustomerNo { get; set; } = string.Empty;
+
+    /// <summary>Primary KASNEB Registration No from student's Exam Accounts (e.g. "NAC/181912")</summary>
+    public string PrimaryRegistrationNo { get; set; } = string.Empty;
+
+    /// <summary>Primary Qualification Pathway / Course title (e.g. "Certified Public Accountants")</summary>
+    public string QualificationPathway { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
 
