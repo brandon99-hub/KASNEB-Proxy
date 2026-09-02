@@ -234,6 +234,7 @@ public class VendorService
             SupplierCategoryCode = categoryCode,
             SupplierCategory = categoryDesc,
             SpecialCategory = r.SpecialCategory ?? string.Empty,
+            AgpoCertNo = r.AgpoCertNo ?? string.Empty,
             Address = r.Address ?? string.Empty,
             City = r.City ?? string.Empty,
             County = r.County ?? string.Empty,

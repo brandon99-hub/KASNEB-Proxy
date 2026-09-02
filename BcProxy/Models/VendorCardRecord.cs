@@ -40,6 +40,9 @@ public class VendorCardRecord
     [JsonPropertyName("Special_Category")]
     public string? SpecialCategory { get; set; }
 
+    [JsonPropertyName("_x003C_AGPO_Cert_No__x003E_")]
+    public string? AgpoCertNo { get; set; }
+
     [JsonPropertyName("Category")]
     public string? Category { get; set; }
 

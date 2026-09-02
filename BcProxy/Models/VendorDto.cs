@@ -39,6 +39,8 @@ public class VendorDto
 
     public string SpecialCategory { get; set; } = string.Empty;
 
+    public string AgpoCertNo { get; set; } = string.Empty;
+
     public string Address { get; set; } = string.Empty;
 
     public string City { get; set; } = string.Empty;
