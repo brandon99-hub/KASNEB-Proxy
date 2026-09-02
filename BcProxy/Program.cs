@@ -57,6 +57,8 @@ builder.Services.AddHttpClient<ODataFetcher>(client =>
 
 // ─── Application services ─────────────────────────────────────────────────────
 builder.Services.AddScoped<StudentProfileService>();
+builder.Services.AddScoped<InstitutionService>();
+builder.Services.AddScoped<VendorService>();
 
 // ─── Logging ─────────────────────────────────────────────────────────────────
 builder.Logging.ClearProviders();
