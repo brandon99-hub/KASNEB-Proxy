@@ -31,6 +31,20 @@ public class VendorDto
 
     public string VendorType { get; set; } = string.Empty;
 
+    /// <summary>Supplier Category Code (e.g. "KAS 001", "048")</summary>
+    public string SupplierCategoryCode { get; set; } = string.Empty;
+
+    /// <summary>Interpreted Supplier Category Description (e.g. "Supply of General Stationery")</summary>
+    public string SupplierCategory { get; set; } = string.Empty;
+
+    public string SpecialCategory { get; set; } = string.Empty;
+
+    public string Address { get; set; } = string.Empty;
+
+    public string City { get; set; } = string.Empty;
+
+    public string County { get; set; } = string.Empty;
+
     public string Blocked { get; set; } = string.Empty;
 
     public bool PrivacyBlocked { get; set; }

@@ -18,14 +18,15 @@ public class VendorsController : ControllerBase
     }
 
     /// <summary>
-    /// Returns a paginated list of vendors from Business Central.
-    /// Optionally filter by name (contains), vendor code (exact), or vendor type (exact).
+    /// Returns a paginated list of vendors from Business Central VendorCard with interpreted supplier categories.
+    /// Optionally filter by name (contains), vendor code (exact), vendor type (exact), or supplier category (exact).
     /// </summary>
     /// <param name="page">1-based page number (default 1)</param>
     /// <param name="pageSize">Number of records per page (default 100, max 1000)</param>
     /// <param name="name">Optional partial name filter (case-insensitive contains)</param>
     /// <param name="no">Optional exact vendor code (No) filter (e.g. "00066")</param>
     /// <param name="vendorType">Optional vendor type filter (e.g. "Trade")</param>
+    /// <param name="category">Optional supplier category code filter (e.g. "KAS 001")</param>
     /// <param name="cancellationToken">Cancellation token</param>
     [HttpGet]
     public async Task<ActionResult<PagedResponse<VendorDto>>> GetAllVendors(
@@ -34,15 +35,16 @@ public class VendorsController : ControllerBase
         [FromQuery] string? name = null,
         [FromQuery] string? no = null,
         [FromQuery] string? vendorType = null,
+        [FromQuery] string? category = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("GET /vendors?page={Page}&pageSize={PageSize}&name={Name}&no={No}&vendorType={VendorType}",
-                page, pageSize, name, no, vendorType);
+            _logger.LogInformation("GET /vendors?page={Page}&pageSize={PageSize}&name={Name}&no={No}&vendorType={VendorType}&category={Category}",
+                page, pageSize, name, no, vendorType, category);
 
             var result = await _vendorService.GetVendorsPagedAsync(
-                page, pageSize, name, no, vendorType, cancellationToken);
+                page, pageSize, name, no, vendorType, category, cancellationToken);
 
             return Ok(result);
         }
@@ -53,7 +55,26 @@ public class VendorsController : ControllerBase
     }
 
     /// <summary>
-    /// Returns the details for a single vendor by their vendor code (No).
+    /// Returns the list of all supplier categories and their descriptions.
+    /// </summary>
+    [HttpGet("categories")]
+    public async Task<ActionResult<List<SupplierCategoryDto>>> GetCategories(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("GET /vendors/categories");
+            var categories = await _vendorService.GetAllCategoriesAsync(cancellationToken);
+            return Ok(categories);
+        }
+        catch (Exception ex)
+        {
+            return HandleException(ex, "fetching supplier categories");
+        }
+    }
+
+    /// <summary>
+    /// Returns the details for a single vendor by their vendor code (No) with interpreted supplier category.
     /// </summary>
     /// <param name="no">Vendor code (No) (e.g. "00066")</param>
     /// <param name="cancellationToken">Cancellation token</param>
