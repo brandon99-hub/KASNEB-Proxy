@@ -140,12 +140,15 @@ public class StudentsController : ControllerBase
     /// Returns all paper exemptions granted for a student.
     /// </summary>
     [HttpGet("{customerNo}/exemptions")]
-    public async Task<ActionResult<List<ExemptionDto>>> GetExemptions(string customerNo, CancellationToken cancellationToken)
+    public async Task<ActionResult<List<ExemptionDto>>> GetExemptions(
+        string customerNo,
+        [FromQuery] string? registrationNo = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("GET /students/{CustomerNo}/exemptions", customerNo);
-            var result = await _profileService.GetExemptionsAsync(customerNo, cancellationToken);
+            var result = await _profileService.GetExemptionsAsync(customerNo, registrationNo, cancellationToken);
             return Ok(result);
         }
         catch (Exception ex)
@@ -158,12 +161,15 @@ public class StudentsController : ControllerBase
     /// Returns all posted exam deferrals for a student.
     /// </summary>
     [HttpGet("{customerNo}/deferments")]
-    public async Task<ActionResult<List<DefermentDto>>> GetDeferments(string customerNo, CancellationToken cancellationToken)
+    public async Task<ActionResult<List<DefermentDto>>> GetDeferments(
+        string customerNo,
+        [FromQuery] string? registrationNo = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("GET /students/{CustomerNo}/deferments", customerNo);
-            var result = await _profileService.GetDefermentsAsync(customerNo, cancellationToken);
+            var result = await _profileService.GetDefermentsAsync(customerNo, registrationNo, cancellationToken);
             return Ok(result);
         }
         catch (Exception ex)
@@ -176,12 +182,15 @@ public class StudentsController : ControllerBase
     /// Returns all exam bookings/applications for a student.
     /// </summary>
     [HttpGet("{customerNo}/bookings")]
-    public async Task<ActionResult<List<ExamBookingDto>>> GetExamBookings(string customerNo, CancellationToken cancellationToken)
+    public async Task<ActionResult<List<ExamBookingDto>>> GetExamBookings(
+        string customerNo,
+        [FromQuery] string? registrationNo = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("GET /students/{CustomerNo}/bookings", customerNo);
-            var result = await _profileService.GetExamBookingsAsync(customerNo, cancellationToken);
+            var result = await _profileService.GetExamBookingsAsync(customerNo, registrationNo, cancellationToken);
             return Ok(result);
         }
         catch (Exception ex)
@@ -194,12 +203,15 @@ public class StudentsController : ControllerBase
     /// Returns all confirmed bookings with allocated exam centers for a student.
     /// </summary>
     [HttpGet("{customerNo}/processed-bookings")]
-    public async Task<ActionResult<List<ProcessedBookingDto>>> GetProcessedBookings(string customerNo, CancellationToken cancellationToken)
+    public async Task<ActionResult<List<ProcessedBookingDto>>> GetProcessedBookings(
+        string customerNo,
+        [FromQuery] string? registrationNo = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("GET /students/{CustomerNo}/processed-bookings", customerNo);
-            var result = await _profileService.GetProcessedBookingsAsync(customerNo, cancellationToken);
+            var result = await _profileService.GetProcessedBookingsAsync(customerNo, registrationNo, cancellationToken);
             return Ok(result);
         }
         catch (Exception ex)

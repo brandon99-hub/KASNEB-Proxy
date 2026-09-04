@@ -10,11 +10,11 @@ namespace BcProxy.Services;
 ///   1. Studentlist           — bio-data (No, ID_No, Phone_No, E_Mail, Gender, Balance)
 ///   2. ExamAccounts          — KASNEB registration accounts (Registration_No, Course, Status, Renewal)
 ///   3. customerEntries       — posted ledger entries (payments, invoices, credit memos)
-///   4. ExemptionEntries      — granted paper exemptions
-///   5. PostedDeferment       — examination sitting deferral requests
-///   6. StudentsExamBookings  — exam bookings / applications
-///   7. ProcessedBookings     — confirmed bookings and allocated exam centers
-///   8. ExamResults           — historical examination grades, marks, and sittings
+///   4. ExemptionEntries      — granted paper exemptions (keyed by Stud_Reg_No)
+///   5. PostedDeferment       — examination sitting deferral requests (keyed by Student_Reg_No)
+///   6. StudentsExamBookings  — exam bookings / applications (keyed by Student_Reg_No)
+///   7. ProcessedBookings     — confirmed bookings and allocated exam centers (keyed by Student_Reg_No)
+///   8. ExamResults           — historical examination grades, marks, and sittings (keyed by Student_Reg_No)
 /// </summary>
 public class StudentProfileService
 {
@@ -193,37 +193,94 @@ public class StudentProfileService
     // Sub-resource helpers (for modular / tabbed CRM endpoints)
     // ──────────────────────────────────────────────────────────────────────────
 
-    public async Task<List<ExemptionDto>> GetExemptionsAsync(string customerNo, CancellationToken cancellationToken = default)
+    public async Task<List<string>> GetStudentRegistrationNosAsync(string customerNo, CancellationToken cancellationToken)
     {
+        var examAccounts = await SafeFetchAsync<ExamAccount>(
+            BuildUrl(_examAccountsEntity, [$"Student_Cust_No eq '{ODataEscape(customerNo)}'"]), cancellationToken);
+
+        return examAccounts
+            .Select(e => e.RegistrationNo)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Select(r => r!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public async Task<List<ExemptionDto>> GetExemptionsAsync(
+        string customerNo,
+        string? registrationNo = null,
+        CancellationToken cancellationToken = default)
+    {
+        List<string> regNos = !string.IsNullOrWhiteSpace(registrationNo)
+            ? new List<string> { registrationNo }
+            : await GetStudentRegistrationNosAsync(customerNo, cancellationToken);
+
+        string regFilter = regNos.Count > 0
+            ? string.Join(" or ", regNos.Select(r => $"Stud_Reg_No eq '{ODataEscape(r)}'"))
+            : $"Stud_Cust_No eq '{ODataEscape(customerNo)}'";
+
         var records = await SafeFetchAsync<ExemptionEntryRecord>(
-            BuildUrl(_exemptionEntriesEntity, [$"Stud_Cust_No eq '{ODataEscape(customerNo)}' and Remove eq false"]),
+            BuildUrl(_exemptionEntriesEntity, [$"({regFilter}) and Remove eq false"]),
             cancellationToken);
 
         return records.Select(MapToDto).ToList();
     }
 
-    public async Task<List<DefermentDto>> GetDefermentsAsync(string customerNo, CancellationToken cancellationToken = default)
+    public async Task<List<DefermentDto>> GetDefermentsAsync(
+        string customerNo,
+        string? registrationNo = null,
+        CancellationToken cancellationToken = default)
     {
+        List<string> regNos = !string.IsNullOrWhiteSpace(registrationNo)
+            ? new List<string> { registrationNo }
+            : await GetStudentRegistrationNosAsync(customerNo, cancellationToken);
+
+        string filter = regNos.Count > 0
+            ? string.Join(" or ", regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r)}'"))
+            : $"Student_No eq '{ODataEscape(customerNo)}'";
+
         var records = await SafeFetchAsync<PostedDefermentRecord>(
-            BuildUrl(_postedDefermentEntity, [$"Student_No eq '{ODataEscape(customerNo)}'"]),
+            BuildUrl(_postedDefermentEntity, [filter]),
             cancellationToken);
 
         return records.Select(MapToDto).ToList();
     }
 
-    public async Task<List<ExamBookingDto>> GetExamBookingsAsync(string customerNo, CancellationToken cancellationToken = default)
+    public async Task<List<ExamBookingDto>> GetExamBookingsAsync(
+        string customerNo,
+        string? registrationNo = null,
+        CancellationToken cancellationToken = default)
     {
+        List<string> regNos = !string.IsNullOrWhiteSpace(registrationNo)
+            ? new List<string> { registrationNo }
+            : await GetStudentRegistrationNosAsync(customerNo, cancellationToken);
+
+        string filter = regNos.Count > 0
+            ? string.Join(" or ", regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r)}'"))
+            : $"Student_No eq '{ODataEscape(customerNo)}'";
+
         var records = await SafeFetchAsync<StudentExamBookingRecord>(
-            BuildUrl(_studentsExamBookingsEntity, [$"Student_No eq '{ODataEscape(customerNo)}'"]),
+            BuildUrl(_studentsExamBookingsEntity, [filter]),
             cancellationToken);
 
         return records.Select(MapToDto).ToList();
     }
 
-    public async Task<List<ProcessedBookingDto>> GetProcessedBookingsAsync(string customerNo, CancellationToken cancellationToken = default)
+    public async Task<List<ProcessedBookingDto>> GetProcessedBookingsAsync(
+        string customerNo,
+        string? registrationNo = null,
+        CancellationToken cancellationToken = default)
     {
+        List<string> regNos = !string.IsNullOrWhiteSpace(registrationNo)
+            ? new List<string> { registrationNo }
+            : await GetStudentRegistrationNosAsync(customerNo, cancellationToken);
+
+        string filter = regNos.Count > 0
+            ? string.Join(" or ", regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r)}'"))
+            : $"Student_No eq '{ODataEscape(customerNo)}'";
+
         var records = await SafeFetchAsync<ProcessedBookingRecord>(
-            BuildUrl(_processedBookingsEntity, [$"Student_No eq '{ODataEscape(customerNo)}'"]),
+            BuildUrl(_processedBookingsEntity, [filter]),
             cancellationToken);
 
         return records.Select(MapToDto).ToList();
@@ -234,32 +291,32 @@ public class StudentProfileService
         string? registrationNo = null,
         CancellationToken cancellationToken = default)
     {
-        // Try filtering by Student_Reg_No or Registration_No if registrationNo provided, or Student_No
-        List<string> filterOptions = new();
-        if (!string.IsNullOrWhiteSpace(registrationNo))
-        {
-            filterOptions.Add($"Student_Reg_No eq '{ODataEscape(registrationNo)}'");
-        }
-        else
-        {
-            filterOptions.Add($"Student_No eq '{ODataEscape(customerNo)}'");
-        }
+        List<string> regNos = !string.IsNullOrWhiteSpace(registrationNo)
+            ? new List<string> { registrationNo }
+            : await GetStudentRegistrationNosAsync(customerNo, cancellationToken);
 
-        var url = BuildUrl(_examResultsEntity, filterOptions);
-        var records = await SafeFetchAsync<ExamResultRecord>(url, cancellationToken);
+        string filter = regNos.Count > 0
+            ? string.Join(" or ", regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r)}'"))
+            : $"Student_No eq '{ODataEscape(customerNo)}'";
 
-        // Fallback: if empty and we tried Student_No, try by Registration_No if available
-        if (records.Count == 0 && !string.IsNullOrWhiteSpace(registrationNo))
+        var records = await SafeFetchAsync<ExamResultRecord>(
+            BuildUrl(_examResultsEntity, [filter]),
+            cancellationToken);
+
+        // Fallback: try Registration_No if empty
+        if (records.Count == 0 && regNos.Count > 0)
         {
-            var fallbackUrl = BuildUrl(_examResultsEntity, [$"Registration_No eq '{ODataEscape(registrationNo)}'"]);
-            records = await SafeFetchAsync<ExamResultRecord>(fallbackUrl, cancellationToken);
+            var fallbackFilter = string.Join(" or ", regNos.Select(r => $"Registration_No eq '{ODataEscape(r)}'"));
+            records = await SafeFetchAsync<ExamResultRecord>(
+                BuildUrl(_examResultsEntity, [fallbackFilter]),
+                cancellationToken);
         }
 
         return records.Select(MapToDto).ToList();
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Parallel orchestrator for full profile
+    // Parallel orchestrator for full profile (Two-Phase Linkage)
     // ──────────────────────────────────────────────────────────────────────────
 
     private async Task<StudentProfile> FetchAndBuildCompleteProfileAsync(
@@ -268,42 +325,79 @@ public class StudentProfileService
         string? knownRegistrationNo,
         CancellationToken cancellationToken)
     {
-        // 1. Fetch ExamAccounts, Ledger, Exemptions, Deferments, Bookings, ProcessedBookings in parallel
+        // ── Phase 1: Fetch ExamAccounts and Ledger first ──
         var examTask = SafeFetchAsync<ExamAccount>(
             BuildUrl(_examAccountsEntity, [$"Student_Cust_No eq '{ODataEscape(customerNo)}'"]), cancellationToken);
 
         var ledgerTask = SafeFetchAsync<LedgerEntry>(
             BuildUrl(_customerEntriesEntity, [$"Customer_No eq '{ODataEscape(customerNo)}'"]), cancellationToken);
 
-        var exemptionTask = SafeFetchAsync<ExemptionEntryRecord>(
-            BuildUrl(_exemptionEntriesEntity, [$"Stud_Cust_No eq '{ODataEscape(customerNo)}' and Remove eq false"]), cancellationToken);
-
-        var defermentTask = SafeFetchAsync<PostedDefermentRecord>(
-            BuildUrl(_postedDefermentEntity, [$"Student_No eq '{ODataEscape(customerNo)}'"]), cancellationToken);
-
-        var bookingTask = SafeFetchAsync<StudentExamBookingRecord>(
-            BuildUrl(_studentsExamBookingsEntity, [$"Student_No eq '{ODataEscape(customerNo)}'"]), cancellationToken);
-
-        var processedTask = SafeFetchAsync<ProcessedBookingRecord>(
-            BuildUrl(_processedBookingsEntity, [$"Student_No eq '{ODataEscape(customerNo)}'"]), cancellationToken);
-
-        await Task.WhenAll(examTask, ledgerTask, exemptionTask, defermentTask, bookingTask, processedTask);
+        await Task.WhenAll(examTask, ledgerTask);
 
         var examAccounts = await examTask;
         var ledgerEntries = await ledgerTask;
-        var exemptions = await exemptionTask;
-        var deferments = await defermentTask;
-        var bookings = await bookingTask;
-        var processedBookings = await processedTask;
 
-        // Determine primary registration number
+        // Extract all registration numbers for this student across all courses
+        var regNos = examAccounts
+            .Select(e => e.RegistrationNo)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(knownRegistrationNo) && !regNos.Contains(knownRegistrationNo, StringComparer.OrdinalIgnoreCase))
+        {
+            regNos.Add(knownRegistrationNo);
+        }
+
         var primaryReg = knownRegistrationNo
             ?? examAccounts.FirstOrDefault(e => string.Equals(e.Status, "Active", StringComparison.OrdinalIgnoreCase))?.RegistrationNo
             ?? examAccounts.FirstOrDefault()?.RegistrationNo
             ?? string.Empty;
 
-        // Fetch exam results with regNo or customerNo
-        var examResults = await GetExamResultsAsync(customerNo, primaryReg, cancellationToken);
+        // ── Phase 2: Link all academic services by Registration Number ──
+        string regFilter = regNos.Count > 0
+            ? string.Join(" or ", regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r!)}'"))
+            : $"Student_No eq '{ODataEscape(customerNo)}'";
+
+        string exemptionRegFilter = regNos.Count > 0
+            ? string.Join(" or ", regNos.Select(r => $"Stud_Reg_No eq '{ODataEscape(r!)}'"))
+            : $"Stud_Cust_No eq '{ODataEscape(customerNo)}'";
+
+        _logger.LogInformation("Fetching academic data for student {CustomerNo} using reg filter: [{RegFilter}]",
+            customerNo, regFilter);
+
+        var exemptionTask = SafeFetchAsync<ExemptionEntryRecord>(
+            BuildUrl(_exemptionEntriesEntity, [$"({exemptionRegFilter}) and Remove eq false"]), cancellationToken);
+
+        var defermentTask = SafeFetchAsync<PostedDefermentRecord>(
+            BuildUrl(_postedDefermentEntity, [regFilter]), cancellationToken);
+
+        var bookingTask = SafeFetchAsync<StudentExamBookingRecord>(
+            BuildUrl(_studentsExamBookingsEntity, [regFilter]), cancellationToken);
+
+        var processedTask = SafeFetchAsync<ProcessedBookingRecord>(
+            BuildUrl(_processedBookingsEntity, [regFilter]), cancellationToken);
+
+        var resultsTask = SafeFetchAsync<ExamResultRecord>(
+            BuildUrl(_examResultsEntity, [regFilter]), cancellationToken);
+
+        await Task.WhenAll(exemptionTask, defermentTask, bookingTask, processedTask, resultsTask);
+
+        var exemptions = await exemptionTask;
+        var deferments = await defermentTask;
+        var bookings = await bookingTask;
+        var processedBookings = await processedTask;
+        var examResultsRecords = await resultsTask;
+
+        // Fallback for ExamResults: try Registration_No if Student_Reg_No yielded 0
+        if (examResultsRecords.Count == 0 && regNos.Count > 0)
+        {
+            var fallbackFilter = string.Join(" or ", regNos.Select(r => $"Registration_No eq '{ODataEscape(r!)}'"));
+            examResultsRecords = await SafeFetchAsync<ExamResultRecord>(
+                BuildUrl(_examResultsEntity, [fallbackFilter]), cancellationToken);
+        }
+
+        var examResults = examResultsRecords.Select(MapToDto).ToList();
 
         return BuildProfile(student, examAccounts, ledgerEntries, exemptions, deferments, bookings, processedBookings, examResults);
     }
@@ -494,7 +588,7 @@ public class StudentProfileService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to fetch from {Url} — returning empty list for resilient profile assembly", url);
+            _logger.LogError(ex, "Failed to fetch from {Url} — error: {Message}", url, ex.Message);
             return new List<T>();
         }
     }
