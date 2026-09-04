@@ -53,12 +53,12 @@ public class StudentsController : ControllerBase
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // DETAIL endpoints — full profile (bio + exam accounts + ledger)
+    // DETAIL endpoints — full 360 profile
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Returns the full profile for a student by their BC Customer No (e.g. ST00145181).
-    /// Includes bio-data, all KASNEB exam accounts, and all ledger entries.
+    /// Returns the full 360-degree profile for a student by their BC Customer No (e.g. ST00145181).
+    /// Includes bio-data, exam accounts, exemptions, deferments, exam bookings, processed bookings, exam results, and ledger.
     /// </summary>
     /// <param name="customerNo">BC Customer No (e.g. "ST00145181")</param>
     [HttpGet("{customerNo}")]
@@ -129,6 +129,103 @@ public class StudentsController : ControllerBase
         catch (Exception ex)
         {
             return HandleException(ex, $"fetching student by registration {registrationNo}");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Sub-resource endpoints (for tabbed CRM views)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns all paper exemptions granted for a student.
+    /// </summary>
+    [HttpGet("{customerNo}/exemptions")]
+    public async Task<ActionResult<List<ExemptionDto>>> GetExemptions(string customerNo, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("GET /students/{CustomerNo}/exemptions", customerNo);
+            var result = await _profileService.GetExemptionsAsync(customerNo, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return HandleException(ex, $"fetching exemptions for student {customerNo}");
+        }
+    }
+
+    /// <summary>
+    /// Returns all posted exam deferrals for a student.
+    /// </summary>
+    [HttpGet("{customerNo}/deferments")]
+    public async Task<ActionResult<List<DefermentDto>>> GetDeferments(string customerNo, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("GET /students/{CustomerNo}/deferments", customerNo);
+            var result = await _profileService.GetDefermentsAsync(customerNo, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return HandleException(ex, $"fetching deferments for student {customerNo}");
+        }
+    }
+
+    /// <summary>
+    /// Returns all exam bookings/applications for a student.
+    /// </summary>
+    [HttpGet("{customerNo}/bookings")]
+    public async Task<ActionResult<List<ExamBookingDto>>> GetExamBookings(string customerNo, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("GET /students/{CustomerNo}/bookings", customerNo);
+            var result = await _profileService.GetExamBookingsAsync(customerNo, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return HandleException(ex, $"fetching exam bookings for student {customerNo}");
+        }
+    }
+
+    /// <summary>
+    /// Returns all confirmed bookings with allocated exam centers for a student.
+    /// </summary>
+    [HttpGet("{customerNo}/processed-bookings")]
+    public async Task<ActionResult<List<ProcessedBookingDto>>> GetProcessedBookings(string customerNo, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("GET /students/{CustomerNo}/processed-bookings", customerNo);
+            var result = await _profileService.GetProcessedBookingsAsync(customerNo, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return HandleException(ex, $"fetching processed bookings for student {customerNo}");
+        }
+    }
+
+    /// <summary>
+    /// Returns historical exam results, grades, and marks for a student.
+    /// </summary>
+    [HttpGet("{customerNo}/results")]
+    public async Task<ActionResult<List<ExamResultDto>>> GetExamResults(
+        string customerNo,
+        [FromQuery] string? registrationNo = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("GET /students/{CustomerNo}/results", customerNo);
+            var result = await _profileService.GetExamResultsAsync(customerNo, registrationNo, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return HandleException(ex, $"fetching exam results for student {customerNo}");
         }
     }
 

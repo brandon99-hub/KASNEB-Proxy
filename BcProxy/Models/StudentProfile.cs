@@ -45,9 +45,9 @@ public class StudentSummary
 }
 
 /// <summary>
-/// Full student profile returned by GET /students/{customerNo}.
-/// Combines bio-data (Studentlist) + exam accounts (ExamAccounts) + ledger (customerEntries)
-/// all scoped to a single student, fetched in parallel for performance.
+/// Full 360-degree student profile returned by GET /students/{customerNo}.
+/// Combines bio-data, exam accounts, exemptions, deferments, exam bookings,
+/// processed bookings, exam results, and ledger entries.
 /// </summary>
 public class StudentProfile
 {
@@ -84,13 +84,36 @@ public class StudentProfile
 
     /// <summary>
     /// All KASNEB exam / registration accounts for this student.
-    /// A student may be registered in multiple courses (e.g. CPA + CIFA).
     /// </summary>
     public List<ExamAccountDto> ExamAccounts { get; set; } = new();
 
     /// <summary>
-    /// All posted customer ledger entries (payments, invoices, credit memos)
-    /// for this student, sorted newest-first.
+    /// All granted paper exemptions for this student.
+    /// </summary>
+    public List<ExemptionDto> Exemptions { get; set; } = new();
+
+    /// <summary>
+    /// All posted exam sitting deferrals.
+    /// </summary>
+    public List<DefermentDto> Deferments { get; set; } = new();
+
+    /// <summary>
+    /// All student exam bookings/applications.
+    /// </summary>
+    public List<ExamBookingDto> ExamBookings { get; set; } = new();
+
+    /// <summary>
+    /// Confirmed exam bookings with allocated exam centers.
+    /// </summary>
+    public List<ProcessedBookingDto> ProcessedBookings { get; set; } = new();
+
+    /// <summary>
+    /// Academic exam performance, grades, and marks history.
+    /// </summary>
+    public List<ExamResultDto> ExamResults { get; set; } = new();
+
+    /// <summary>
+    /// All posted customer ledger entries (payments, invoices, credit memos) sorted newest-first.
     /// </summary>
     public List<LedgerEntryDto> LedgerEntries { get; set; } = new();
 }
@@ -118,6 +141,93 @@ public class ExamAccountDto
     public decimal TotalAmountFromHelb { get; set; }
     public string LastExamDate { get; set; } = string.Empty;
     public string LastPaymentDate { get; set; } = string.Empty;
+}
+
+public class ExemptionDto
+{
+    public int EntryNo { get; set; }
+    public string StudCustNo { get; set; } = string.Empty;
+    public string StudRegNo { get; set; } = string.Empty;
+    public string ExemptionVoucherNo { get; set; } = string.Empty;
+    public string CourseId { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public string Level { get; set; } = string.Empty;
+    public string PaperNo { get; set; } = string.Empty;
+    public string PaperName { get; set; } = string.Empty;
+    public string CurrencyCode { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public decimal AmountLcy { get; set; }
+    public string LastDateModified { get; set; } = string.Empty;
+}
+
+public class DefermentDto
+{
+    public string DefermentNo { get; set; } = string.Empty;
+    public string Date { get; set; } = string.Empty;
+    public string StudentNo { get; set; } = string.Empty;
+    public string StudentRegNo { get; set; } = string.Empty;
+    public string ExaminationId { get; set; } = string.Empty;
+    public string ExaminationDescription { get; set; } = string.Empty;
+    public string ExaminationSitting { get; set; } = string.Empty;
+    public string PreferredExaminationSitting { get; set; } = string.Empty;
+    public string CreatedBy { get; set; } = string.Empty;
+    public string CreatedOn { get; set; } = string.Empty;
+    public string PostedBy { get; set; } = string.Empty;
+    public string PostedOn { get; set; } = string.Empty;
+}
+
+public class ExamBookingDto
+{
+    public string BookingNo { get; set; } = string.Empty;
+    public string Date { get; set; } = string.Empty;
+    public string StudentNo { get; set; } = string.Empty;
+    public string StudentRegNo { get; set; } = string.Empty;
+    public string ExaminationId { get; set; } = string.Empty;
+    public string ExaminationDescription { get; set; } = string.Empty;
+    public string ExaminationSitting { get; set; } = string.Empty;
+    public string BookingReceiptNo { get; set; } = string.Empty;
+    public string BookingInvoiceNo { get; set; } = string.Empty;
+    public string CreatedBy { get; set; } = string.Empty;
+    public string CreatedOn { get; set; } = string.Empty;
+}
+
+public class ProcessedBookingDto
+{
+    public string BookingNo { get; set; } = string.Empty;
+    public string Date { get; set; } = string.Empty;
+    public string StudentNo { get; set; } = string.Empty;
+    public string StudentRegNo { get; set; } = string.Empty;
+    public string ExaminationId { get; set; } = string.Empty;
+    public string ExaminationDescription { get; set; } = string.Empty;
+    public decimal BookingAmount { get; set; }
+    public string ExaminationCenterCode { get; set; } = string.Empty;
+    public string ExaminationCenter { get; set; } = string.Empty;
+    public string PhoneNo { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty;
+    public bool Disabled { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+    public string CreatedOn { get; set; } = string.Empty;
+    public string PostedBy { get; set; } = string.Empty;
+    public string PostedOn { get; set; } = string.Empty;
+}
+
+public class ExamResultDto
+{
+    public int LineNo { get; set; }
+    public string Examination { get; set; } = string.Empty;
+    public string Part { get; set; } = string.Empty;
+    public string Section { get; set; } = string.Empty;
+    public string Paper { get; set; } = string.Empty;
+    public string PaperName { get; set; } = string.Empty;
+    public string FinancialYear { get; set; } = string.Empty;
+    public string Grade { get; set; } = string.Empty;
+    public string SectionGrade { get; set; } = string.Empty;
+    public string SectionDescription { get; set; } = string.Empty;
+    public string ExaminationSittingId { get; set; } = string.Empty;
+    public string ExaminationCenter { get; set; } = string.Empty;
+    public decimal Mark { get; set; }
+    public bool Passed { get; set; }
+    public string Remarks { get; set; } = string.Empty;
 }
 
 public class LedgerEntryDto
