@@ -343,12 +343,9 @@ public class ExamCenterService
             PostCode = r.PostCode ?? string.Empty,
             City = r.City ?? string.Empty,
             CountryRegionCode = r.CountryRegionCode ?? string.Empty,
-            ShowMap = r.ShowMap ?? string.Empty,
             Contact = r.Contact ?? string.Empty,
             PhoneNo = r.PhoneNo ?? string.Empty,
-            FaxNo = r.FaxNo ?? string.Empty,
-            Email = r.Email ?? string.Empty,
-            HomePage = r.HomePage ?? string.Empty
+            Email = r.Email ?? string.Empty
         };
     }
 

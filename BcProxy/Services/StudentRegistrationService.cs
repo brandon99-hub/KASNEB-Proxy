@@ -165,14 +165,10 @@ public class StudentRegistrationService
         Disabled = r.Disabled,
         NcpwdNo = r.NcpwdNo ?? string.Empty,
         RegistrationDate = r.RegistrationDate ?? string.Empty,
-        CreatedBy = r.CreatedBy ?? string.Empty,
         CreatedOn = r.CreatedOn ?? string.Empty,
         EmailSent = r.EmailSent,
         ApprovalStatus = r.ApprovalStatus ?? string.Empty,
         Email = r.Email ?? string.Empty,
-        PostedOn = r.PostedOn ?? string.Empty,
-        PostedBy = r.PostedBy ?? string.Empty,
-        ManualInput = r.ManualInput,
         HighestAcademicQualification = r.HighestAcademicQualification ?? string.Empty,
         HighestAcademicQCode = r.HighestAcademicQCode ?? string.Empty
     };

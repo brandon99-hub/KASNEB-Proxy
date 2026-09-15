@@ -29,8 +29,6 @@ public class StudentRegistrationDto
 
     public string RegistrationDate { get; set; } = string.Empty;
 
-    public string CreatedBy { get; set; } = string.Empty;
-
     public string CreatedOn { get; set; } = string.Empty;
 
     public bool EmailSent { get; set; }
@@ -39,12 +37,6 @@ public class StudentRegistrationDto
     public string ApprovalStatus { get; set; } = string.Empty;
 
     public string Email { get; set; } = string.Empty;
-
-    public string PostedOn { get; set; } = string.Empty;
-
-    public string PostedBy { get; set; } = string.Empty;
-
-    public bool ManualInput { get; set; }
 
     public string HighestAcademicQualification { get; set; } = string.Empty;
 

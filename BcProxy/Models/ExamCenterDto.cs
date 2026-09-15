@@ -68,15 +68,9 @@ public class ExamCenterDto
 
     public string CountryRegionCode { get; set; } = string.Empty;
 
-    public string ShowMap { get; set; } = string.Empty;
-
     public string Contact { get; set; } = string.Empty;
 
     public string PhoneNo { get; set; } = string.Empty;
 
-    public string FaxNo { get; set; } = string.Empty;
-
     public string Email { get; set; } = string.Empty;
-
-    public string HomePage { get; set; } = string.Empty;
 }
