@@ -194,21 +194,25 @@ public class ExamBookingDto
 public class ProcessedBookingDto
 {
     public string BookingNo { get; set; } = string.Empty;
-    public string Date { get; set; } = string.Empty;
     public string StudentNo { get; set; } = string.Empty;
     public string StudentRegNo { get; set; } = string.Empty;
+    public string StudentName { get; set; } = string.Empty;
+    public string IdNumberPassportNo { get; set; } = string.Empty;
     public string ExaminationId { get; set; } = string.Empty;
     public string ExaminationDescription { get; set; } = string.Empty;
-    public decimal BookingAmount { get; set; }
     public string ExaminationCenterCode { get; set; } = string.Empty;
     public string ExaminationCenter { get; set; } = string.Empty;
-    public string PhoneNo { get; set; } = string.Empty;
+    public string ExaminationSitting { get; set; } = string.Empty;
+    public string ExaminationProjectCode { get; set; } = string.Empty;
+    public string ExaminationProjectName { get; set; } = string.Empty;
+    public decimal BookingAmount { get; set; }
+    public string BookingInvoiceNo { get; set; } = string.Empty;
+    public string BookingReceiptNo { get; set; } = string.Empty;
+    public string PaymentReferenceNo { get; set; } = string.Empty;
+    public string CurrencyCode { get; set; } = string.Empty;
+    public string ReasonForRejection { get; set; } = string.Empty;
     public string Gender { get; set; } = string.Empty;
     public bool Disabled { get; set; }
-    public string CreatedBy { get; set; } = string.Empty;
-    public string CreatedOn { get; set; } = string.Empty;
-    public string PostedBy { get; set; } = string.Empty;
-    public string PostedOn { get; set; } = string.Empty;
 }
 
 public class ExamResultDto

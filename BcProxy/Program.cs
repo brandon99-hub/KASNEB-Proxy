@@ -62,6 +62,7 @@ builder.Services.AddScoped<InstitutionService>();
 builder.Services.AddScoped<VendorService>();
 builder.Services.AddScoped<StudentRegistrationService>();
 builder.Services.AddScoped<ExamCenterService>();
+builder.Services.AddScoped<ExamSittingService>();
 
 // ─── Logging ─────────────────────────────────────────────────────────────────
 builder.Logging.ClearProviders();

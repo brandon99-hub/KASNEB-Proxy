@@ -275,15 +275,21 @@ public class StudentProfileService
             ? new List<string> { registrationNo }
             : await GetStudentRegistrationNosAsync(customerNo, cancellationToken);
 
-        string filter = regNos.Count > 0
-            ? string.Join(" or ", regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r)}'"))
-            : $"Student_No eq '{ODataEscape(customerNo)}'";
+        var filterParts = new List<string> { $"Student_No eq '{ODataEscape(customerNo)}'" };
+        if (regNos.Count > 0)
+        {
+            filterParts.AddRange(regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r)}'"));
+        }
+        string filter = string.Join(" or ", filterParts);
 
         var records = await SafeFetchAsync<ProcessedBookingRecord>(
             BuildUrl(_processedBookingsEntity, [filter]),
             cancellationToken);
 
-        return records.Select(MapToDto).ToList();
+        return records
+            .DistinctBy(r => r.No)
+            .Select(MapToDto)
+            .ToList();
     }
 
     public async Task<List<ExamResultDto>> GetExamResultsAsync(
@@ -372,21 +378,26 @@ public class StudentProfileService
         var defermentTask = SafeFetchAsync<PostedDefermentRecord>(
             BuildUrl(_postedDefermentEntity, [regFilter]), cancellationToken);
 
-        var bookingTask = SafeFetchAsync<StudentExamBookingRecord>(
-            BuildUrl(_studentsExamBookingsEntity, [regFilter]), cancellationToken);
+        var processedConditions = new List<string> { $"Student_No eq '{ODataEscape(customerNo)}'" };
+        if (regNos.Count > 0)
+        {
+            processedConditions.AddRange(regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r!)}'"));
+        }
+        string processedFilter = string.Join(" or ", processedConditions);
 
         var processedTask = SafeFetchAsync<ProcessedBookingRecord>(
-            BuildUrl(_processedBookingsEntity, [regFilter]), cancellationToken);
+            BuildUrl(_processedBookingsEntity, [processedFilter]), cancellationToken);
 
         var resultsTask = SafeFetchAsync<ExamResultRecord>(
             BuildUrl(_examResultsEntity, [regFilter]), cancellationToken);
 
-        await Task.WhenAll(exemptionTask, defermentTask, bookingTask, processedTask, resultsTask);
+        await Task.WhenAll(exemptionTask, defermentTask, processedTask, resultsTask);
 
         var exemptions = await exemptionTask;
         var deferments = await defermentTask;
-        var bookings = await bookingTask;
-        var processedBookings = await processedTask;
+        var bookings = new List<StudentExamBookingRecord>();
+        var processedBookingsRecords = await processedTask;
+        var processedBookings = processedBookingsRecords.DistinctBy(r => r.No).ToList();
         var examResultsRecords = await resultsTask;
 
         // Fallback for ExamResults: try Registration_No if Student_Reg_No yielded 0
@@ -541,25 +552,38 @@ public class StudentProfileService
         CreatedOn = r.CreatedOn ?? string.Empty
     };
 
-    private static ProcessedBookingDto MapToDto(ProcessedBookingRecord r) => new()
+    private static ProcessedBookingDto MapToDto(ProcessedBookingRecord r)
     {
-        BookingNo = r.No ?? string.Empty,
-        Date = r.Date ?? string.Empty,
-        StudentNo = r.StudentNo ?? string.Empty,
-        StudentRegNo = r.StudentRegNo ?? string.Empty,
-        ExaminationId = r.ExaminationId ?? string.Empty,
-        ExaminationDescription = r.ExaminationDescription ?? string.Empty,
-        BookingAmount = r.BookingAmount,
-        ExaminationCenterCode = r.ExaminationCenterCode ?? string.Empty,
-        ExaminationCenter = r.ExaminationCenter ?? string.Empty,
-        PhoneNo = r.PhoneNo ?? string.Empty,
-        Gender = r.Gender ?? string.Empty,
-        Disabled = r.Disabled,
-        CreatedBy = r.CreatedBy ?? string.Empty,
-        CreatedOn = r.CreatedOn ?? string.Empty,
-        PostedBy = r.PostedBy ?? string.Empty,
-        PostedOn = r.PostedOn ?? string.Empty
-    };
+        var sitting = !string.IsNullOrWhiteSpace(r.ExaminationSitting)
+            ? r.ExaminationSitting
+            : (!string.IsNullOrWhiteSpace(r.ExaminationProjectName)
+                ? r.ExaminationProjectName
+                : (r.ExaminationProjectCode ?? string.Empty));
+
+        return new ProcessedBookingDto
+        {
+            BookingNo = r.No ?? string.Empty,
+            StudentNo = r.StudentNo ?? string.Empty,
+            StudentRegNo = r.StudentRegNo ?? string.Empty,
+            StudentName = r.StudentName ?? string.Empty,
+            IdNumberPassportNo = r.IdNumberPassportNo ?? string.Empty,
+            ExaminationId = r.ExaminationId ?? string.Empty,
+            ExaminationDescription = r.ExaminationDescription ?? string.Empty,
+            ExaminationCenterCode = r.ExaminationCenterCode ?? string.Empty,
+            ExaminationCenter = r.ExaminationCenter ?? string.Empty,
+            ExaminationSitting = sitting.Trim(),
+            ExaminationProjectCode = r.ExaminationProjectCode ?? string.Empty,
+            ExaminationProjectName = r.ExaminationProjectName ?? string.Empty,
+            BookingAmount = r.BookingAmount,
+            BookingInvoiceNo = r.BookingInvoiceNo ?? string.Empty,
+            BookingReceiptNo = r.BookingReceiptNo ?? string.Empty,
+            PaymentReferenceNo = r.PaymentReferenceNo ?? string.Empty,
+            CurrencyCode = r.CurrencyCode ?? string.Empty,
+            ReasonForRejection = r.ReasonForRejection ?? string.Empty,
+            Gender = r.Gender ?? string.Empty,
+            Disabled = r.Disabled
+        };
+    }
 
     private static ExamResultDto MapToDto(ExamResultRecord r) => new()
     {
