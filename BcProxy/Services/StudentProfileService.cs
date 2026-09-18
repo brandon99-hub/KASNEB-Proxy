@@ -271,20 +271,33 @@ public class StudentProfileService
         string? registrationNo = null,
         CancellationToken cancellationToken = default)
     {
-        List<string> regNos = !string.IsNullOrWhiteSpace(registrationNo)
-            ? new List<string> { registrationNo }
-            : await GetStudentRegistrationNosAsync(customerNo, cancellationToken);
+        List<ProcessedBookingRecord> records;
 
-        var filterParts = new List<string> { $"Student_No eq '{ODataEscape(customerNo)}'" };
-        if (regNos.Count > 0)
+        if (!string.IsNullOrWhiteSpace(registrationNo))
         {
-            filterParts.AddRange(regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r)}'"));
+            var regFilter = $"Student_Reg_No eq '{ODataEscape(registrationNo)}'";
+            records = await _fetcher.FetchAllAsync<ProcessedBookingRecord>(
+                BuildUrl(_processedBookingsEntity, [regFilter]), cancellationToken);
         }
-        string filter = string.Join(" or ", filterParts);
+        else
+        {
+            // Query 1: by Student_No (primary customer ID on ProcessedBookingsCard)
+            var studentNoFilter = $"Student_No eq '{ODataEscape(customerNo)}'";
+            records = await _fetcher.FetchAllAsync<ProcessedBookingRecord>(
+                BuildUrl(_processedBookingsEntity, [studentNoFilter]), cancellationToken);
 
-        var records = await SafeFetchAsync<ProcessedBookingRecord>(
-            BuildUrl(_processedBookingsEntity, [filter]),
-            cancellationToken);
+            // Fallback: if 0 records, query by registration numbers discovered from ExamAccounts
+            if (records.Count == 0)
+            {
+                var regNos = await GetStudentRegistrationNosAsync(customerNo, cancellationToken);
+                if (regNos.Count > 0)
+                {
+                    var regFilter = string.Join(" or ", regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r)}'"));
+                    records = await _fetcher.FetchAllAsync<ProcessedBookingRecord>(
+                        BuildUrl(_processedBookingsEntity, [regFilter]), cancellationToken);
+                }
+            }
+        }
 
         return records
             .DistinctBy(r => r.No)
@@ -378,15 +391,8 @@ public class StudentProfileService
         var defermentTask = SafeFetchAsync<PostedDefermentRecord>(
             BuildUrl(_postedDefermentEntity, [regFilter]), cancellationToken);
 
-        var processedConditions = new List<string> { $"Student_No eq '{ODataEscape(customerNo)}'" };
-        if (regNos.Count > 0)
-        {
-            processedConditions.AddRange(regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r!)}'"));
-        }
-        string processedFilter = string.Join(" or ", processedConditions);
-
         var processedTask = SafeFetchAsync<ProcessedBookingRecord>(
-            BuildUrl(_processedBookingsEntity, [processedFilter]), cancellationToken);
+            BuildUrl(_processedBookingsEntity, [$"Student_No eq '{ODataEscape(customerNo)}'"]), cancellationToken);
 
         var resultsTask = SafeFetchAsync<ExamResultRecord>(
             BuildUrl(_examResultsEntity, [regFilter]), cancellationToken);
@@ -397,6 +403,15 @@ public class StudentProfileService
         var deferments = await defermentTask;
         var bookings = new List<StudentExamBookingRecord>();
         var processedBookingsRecords = await processedTask;
+
+        // Fallback: if Student_No yielded 0 records and registration numbers exist, query by Student_Reg_No
+        if (processedBookingsRecords.Count == 0 && regNos.Count > 0)
+        {
+            var regFilterForBookings = string.Join(" or ", regNos.Select(r => $"Student_Reg_No eq '{ODataEscape(r!)}'"));
+            processedBookingsRecords = await SafeFetchAsync<ProcessedBookingRecord>(
+                BuildUrl(_processedBookingsEntity, [regFilterForBookings]), cancellationToken);
+        }
+
         var processedBookings = processedBookingsRecords.DistinctBy(r => r.No).ToList();
         var examResultsRecords = await resultsTask;
 
